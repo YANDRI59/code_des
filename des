@@ -1,0 +1,113 @@
+# Fungsi permute
+def permute(text, permutation):
+    output = ""
+    for i in permutation:
+        output += text[i - 1]
+    return output
+
+# Fungsi XOR
+def xor(a, b):
+    # XOR 2 string bitwise
+    output = ""
+    for i in range(len(a)):
+        if a[i] == b[i]:
+            output += "0"
+        else:
+            output += "1"
+    return output
+
+# S-Box lookups
+sBoxes = [
+    [[1, 0, 3, 2], [3, 2, 1, 0], [0, 2, 1, 3], [3, 1, 3, 2]],
+    [[0, 1, 2, 3], [2, 0, 1, 3], [3, 0, 1, 0], [2, 1, 0, 3]]
+]
+
+# Permutasi
+initialPermutation = [2, 6, 3, 1, 4, 8, 5, 7]
+finalPermutation = [4, 1, 3, 5, 7, 2, 8, 6]
+keyPermutation = [3, 5, 2, 7, 4, 10, 1, 9, 8, 6]
+expansionPermutation = [4, 1, 2, 3, 2, 3, 4, 1]
+pBoxPermutation = [2, 4, 3, 1]
+
+# Input plaintext dalam desimal
+plaintext_decimal = int(input("Masukkan plaintext dalam desimal (0-255): "))
+key_decimal = int(input("Masukkan kunci dalam desimal (0-1023): "))
+
+# Pastikan panjang input sesuai
+if plaintext_decimal < 0 or plaintext_decimal > 255 or key_decimal < 0 or key_decimal > 1023:
+    print("Plaintext harus dalam rentang 0-255 dan kunci harus dalam rentang 0-1023.")
+else:
+    # Konversi input ke biner 8-bit dan 10-bit
+    plaintext_binary = format(plaintext_decimal, '08b')
+    key_binary = format(key_decimal, '010b')
+
+    # Enkripsi
+    print("\nPlaintext (8-bit):", plaintext_binary)
+    print("Kunci (10-bit):", key_binary)
+
+    # Permutasi awal plaintext
+    permutedText = permute(plaintext_binary, initialPermutation)
+    print("Setelah permutasi awal:", permutedText)
+
+    # Generate kunci ronde
+    permutedKey = permute(key_binary, keyPermutation)
+    left = permutedKey[:5]
+    right = permutedKey[5:]
+
+    # Putar kiri 1 bit
+    leftRotated = left[1:] + left[0]
+    rightRotated = right[1:] + right[0]
+
+    # Kunci ronde 1
+    combinedKey = leftRotated + rightRotated
+    keyRonde1 = permute(combinedKey, keyPermutation)
+    print("Kunci ronde 1:", keyRonde1)
+
+    # Putar kiri 2 bit
+    leftRotated = leftRotated[2:] + leftRotated[:2]
+    rightRotated = rightRotated[2:] + rightRotated[:2]
+
+    # Kunci ronde 2
+    combinedKey = leftRotated + rightRotated
+    keyRonde2 = permute(combinedKey, keyPermutation)
+    print("Kunci ronde 2:", keyRonde2)
+
+    # Ronde 1
+    rightText = permutedText[4:]
+    expandedRightText = permute(rightText, expansionPermutation)
+    xoredWithKey = xor(expandedRightText, keyRonde1)
+
+    sBoxResult = ""
+    for i in range(0, len(xoredWithKey), 4):
+        row = int(xoredWithKey[i] + xoredWithKey[i+3], 2)
+        col = int(xoredWithKey[i+1] + xoredWithKey[i+2], 2)
+        val = sBoxes[i//4][row][col]
+        sBoxResult += format(val, '02b')
+
+    sBoxPermuted = permute(sBoxResult, pBoxPermutation)
+    rightXored = xor(permutedText[:4], sBoxPermuted)
+    r1Output = rightXored + permutedText[4:]
+
+    print("Hasil ronde 1:", r1Output)
+
+    # Ronde 2
+    rightText = r1Output[4:]
+    expandedRightText = permute(rightText, expansionPermutation)
+    xoredWithKey = xor(expandedRightText, keyRonde2)
+
+    sBoxResult = ""
+    for i in range(0, len(xoredWithKey), 4):
+        row = int(xoredWithKey[i] + xoredWithKey[i+3], 2)
+        col = int(xoredWithKey[i+1] + xoredWithKey[i+2], 2)
+        val = sBoxes[i//4][row][col]
+        sBoxResult += format(val, '02b')
+
+    sBoxPermuted = permute(sBoxResult, pBoxPermutation)
+    rightXored = xor(r1Output[:4], sBoxPermuted)
+    r2Output = rightXored + r1Output[4:]
+
+    # Permutasi balik
+    ciphertext = permute(r2Output, finalPermutation)
+    print("Hasil enkripsi (8-bit):", ciphertext)
+    ciphertext_decimal = int(ciphertext, 2)
+    print("Hasil enkripsi dalam desimal:", ciphertext_decimal)
